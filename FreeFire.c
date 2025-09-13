@@ -22,6 +22,12 @@ typedef struct {
     int prioridade; // 1 a 5
 } Item;
 
+// Struct para Nó da lista encadeada
+typedef struct No {
+    Item dados;
+    struct No* proximo;
+} No;
+
 // Protótipos das funções
 void limparTela();
 void exibirMenu(bool ordenadaPorNome);
@@ -31,10 +37,22 @@ void listarItens(Item mochila[], int numItens);
 void menuDeOrdenacao(Item mochila[], int numItens, bool *ordenadaPorNome, int *comparacoes);
 void insertionSort(Item mochila[], int numItens, CriterioOrdenacao criterio, int *comparacoes);
 void buscaBinariaPorNome(Item mochila[], int numItens, bool ordenadaPorNome);
+void buscaSequencialPorNome(Item mochila[], int numItens);
+void compararEstruturas(Item mochila[], int numItens, bool ordenadaPorNome);
+void testarDesempenhoBusca(Item mochila[], int numItens, bool ordenadaPorNome);
 void limparBuffer();
+
+// Funções para lista encadeada
+No* criarNo(Item item);
+No* inserirListaEncadeada(No* head, Item item);
+No* buscarListaEncadeada(No* head, char nome[], int *comparacoes);
+void liberarLista(No* head);
 
 // Variáveis globais para análise de desempenho
 int comparacoes = 0;
+int comp_sequencial = 0;
+int comp_binaria = 0;
+int comp_lista = 0;
 
 int main() {
     Item mochila[MAX_ITENS];
@@ -66,6 +84,15 @@ int main() {
             case 5:
                 buscaBinariaPorNome(mochila, numItens, ordenadaPorNome);
                 break;
+            case 6:
+                buscaSequencialPorNome(mochila, numItens);
+                break;
+            case 7:
+                compararEstruturas(mochila, numItens, ordenadaPorNome);
+                break;
+            case 8:
+                testarDesempenhoBusca(mochila, numItens, ordenadaPorNome);
+                break;
             case 0:
                 printf("Saindo do sistema...\n");
                 break;
@@ -89,7 +116,7 @@ void limparTela() {
     }
 }
 
-// Função para exibir o menu principal
+// Função para exibir o menu principal (atualizada)
 void exibirMenu(bool ordenadaPorNome) {
     printf("=========================================\n");
     printf("       GERENCIADOR DE MOCHILA\n");
@@ -99,6 +126,9 @@ void exibirMenu(bool ordenadaPorNome) {
     printf("3. Listar todos os itens\n");
     printf("4. Ordenar os itens por criterio\n");
     printf("5. Busca binaria por nome\n");
+    printf("6. Busca sequencial por nome\n");
+    printf("7. Comparar estruturas\n");
+    printf("8. Testar desempenho de busca\n");
     printf("0. Sair\n");
     printf("=========================================\n");
     printf("Status: %s\n", ordenadaPorNome ? "Ordenada por nome" : "Nao ordenada por nome");
@@ -334,10 +364,10 @@ void buscaBinariaPorNome(Item mochila[], int numItens, bool ordenadaPorNome) {
     
     int left = 0, right = numItens - 1;
     int encontrado = -1;
-    int compBusca = 0;
+    comp_binaria = 0;
     
     while (left <= right) {
-        compBusca++;
+        comp_binaria++;
         int mid = left + (right - left) / 2;
         
         int comparacao = strcmp(mochila[mid].nome, nomeBusca);
@@ -353,13 +383,198 @@ void buscaBinariaPorNome(Item mochila[], int numItens, bool ordenadaPorNome) {
     }
     
     if (encontrado != -1) {
-        printf("\n✅ Item encontrado (apos %d comparacoes):\n", compBusca);
+        printf("\n✅ Item encontrado (apos %d comparacoes):\n", comp_binaria);
         printf("Nome: %s\n", mochila[encontrado].nome);
         printf("Tipo: %s\n", mochila[encontrado].tipo);
         printf("Quantidade: %d\n", mochila[encontrado].quantidade);
         printf("Prioridade: %d\n", mochila[encontrado].prioridade);
     } else {
-        printf("\n❌ Item '%s' nao encontrado (apos %d comparacoes).\n", nomeBusca, compBusca);
+        printf("\n❌ Item '%s' nao encontrado (apos %d comparacoes).\n", nomeBusca, comp_binaria);
+    }
+}
+
+// Nova função: Busca sequencial por nome
+void buscaSequencialPorNome(Item mochila[], int numItens) {
+    if (numItens == 0) {
+        printf("Mochila vazia! Nenhum item para buscar.\n");
+        return;
+    }
+    
+    printf("\n=== BUSCA SEQUENCIAL POR NOME ===\n");
+    
+    char nomeBusca[TAM_NOME];
+    printf("Digite o nome do item a ser buscado: ");
+    fgets(nomeBusca, TAM_NOME, stdin);
+    nomeBusca[strcspn(nomeBusca, "\n")] = '\0';
+    
+    comp_sequencial = 0;
+    int encontrado = -1;
+    
+    for (int i = 0; i < numItens; i++) {
+        comp_sequencial++;
+        if (strcmp(mochila[i].nome, nomeBusca) == 0) {
+            encontrado = i;
+            break;
+        }
+    }
+    
+    if (encontrado != -1) {
+        printf("\n✅ Item encontrado (apos %d comparacoes):\n", comp_sequencial);
+        printf("Nome: %s\n", mochila[encontrado].nome);
+        printf("Tipo: %s\n", mochila[encontrado].tipo);
+        printf("Quantidade: %d\n", mochila[encontrado].quantidade);
+        printf("Prioridade: %d\n", mochila[encontrado].prioridade);
+    } else {
+        printf("\n❌ Item '%s' nao encontrado (apos %d comparacoes).\n", nomeBusca, comp_sequencial);
+    }
+}
+
+// Nova função: Comparar estruturas (Vetor vs Lista Encadeada)
+void compararEstruturas(Item mochila[], int numItens, bool ordenadaPorNome) {
+    if (numItens == 0) {
+        printf("Mochila vazia! Adicione itens primeiro.\n");
+        return;
+    }
+    
+    printf("\n=== COMPARATIVO: VETOR vs LISTA ENCADEADA ===\n");
+    
+    char nomeBusca[TAM_NOME];
+    printf("Digite o nome do item para comparacao: ");
+    fgets(nomeBusca, TAM_NOME, stdin);
+    nomeBusca[strcspn(nomeBusca, "\n")] = '\0';
+    
+    // Criar lista encadeada a partir do vetor
+    No* head = NULL;
+    for (int i = 0; i < numItens; i++) {
+        head = inserirListaEncadeada(head, mochila[i]);
+    }
+    
+    // Busca no vetor (sequencial)
+    comp_sequencial = 0;
+    int encontradoVetor = -1;
+    for (int i = 0; i < numItens; i++) {
+        comp_sequencial++;
+        if (strcmp(mochila[i].nome, nomeBusca) == 0) {
+            encontradoVetor = i;
+            break;
+        }
+    }
+    
+    // Busca na lista encadeada
+    comp_lista = 0;
+    No* encontradoLista = buscarListaEncadeada(head, nomeBusca, &comp_lista);
+    
+    printf("\n=== RESULTADOS ===\n");
+    printf("VETOR - Busca Sequencial: %d comparacoes - %s\n", 
+           comp_sequencial, encontradoVetor != -1 ? "Encontrado" : "Nao encontrado");
+    printf("LISTA - Busca Sequencial: %d comparacoes - %s\n", 
+           comp_lista, encontradoLista != NULL ? "Encontrado" : "Nao encontrado");
+    
+    printf("\n=== ANALISE ===\n");
+    printf("Vetor: Acesso direto, memoria contigua\n");
+    printf("Lista: Alocacao dinamica, insercao/remocao eficiente\n");
+    printf("Espaço Vetor: %lu bytes\n", numItens * sizeof(Item));
+    printf("Espaço Lista: %lu bytes\n", numItens * sizeof(No));
+    
+    liberarLista(head);
+}
+
+// Nova função: Testar desempenho de busca
+void testarDesempenhoBusca(Item mochila[], int numItens, bool ordenadaPorNome) {
+    if (numItens == 0) {
+        printf("Mochila vazia! Adicione itens primeiro.\n");
+        return;
+    }
+    
+    printf("\n=== TESTE DE DESEMPENHO DE BUSCA ===\n");
+    
+    char nomeBusca[TAM_NOME];
+    printf("Digite o nome do item para teste: ");
+    fgets(nomeBusca, TAM_NOME, stdin);
+    nomeBusca[strcspn(nomeBusca, "\n")] = '\0';
+    
+    // Testar diferentes métodos de busca
+    comp_sequencial = 0;
+    comp_binaria = 0;
+    
+    // Busca sequencial
+    int encontradoSeq = -1;
+    for (int i = 0; i < numItens; i++) {
+        comp_sequencial++;
+        if (strcmp(mochila[i].nome, nomeBusca) == 0) {
+            encontradoSeq = i;
+            break;
+        }
+    }
+    
+    // Busca binária (se estiver ordenada)
+    int encontradoBin = -1;
+    if (ordenadaPorNome) {
+        int left = 0, right = numItens - 1;
+        while (left <= right) {
+            comp_binaria++;
+            int mid = (left + right) / 2;
+            int comparacao = strcmp(mochila[mid].nome, nomeBusca);
+            
+            if (comparacao == 0) {
+                encontradoBin = mid;
+                break;
+            } else if (comparacao < 0) {
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }
+    }
+    
+    printf("\n=== DESEMPENHO ===\n");
+    printf("Busca Sequencial: %d comparacoes - %s\n", 
+           comp_sequencial, encontradoSeq != -1 ? "Encontrado" : "Nao encontrado");
+    
+    if (ordenadaPorNome) {
+        printf("Busca Binaria: %d comparacoes - %s\n", 
+               comp_binaria, encontradoBin != -1 ? "Encontrado" : "Nao encontrado");
+        printf("Melhoria: %.2fx mais rapida\n", (float)comp_sequencial / comp_binaria);
+    } else {
+        printf("Busca Binaria: Nao disponivel (vetor nao ordenado)\n");
+    }
+}
+
+// Funções para lista encadeada
+No* criarNo(Item item) {
+    No* novoNo = (No*)malloc(sizeof(No));
+    novoNo->dados = item;
+    novoNo->proximo = NULL;
+    return novoNo;
+}
+
+No* inserirListaEncadeada(No* head, Item item) {
+    No* novoNo = criarNo(item);
+    novoNo->proximo = head;
+    return novoNo;
+}
+
+No* buscarListaEncadeada(No* head, char nome[], int *comparacoes) {
+    *comparacoes = 0;
+    No* atual = head;
+    
+    while (atual != NULL) {
+        (*comparacoes)++;
+        if (strcmp(atual->dados.nome, nome) == 0) {
+            return atual;
+        }
+        atual = atual->proximo;
+    }
+    
+    return NULL;
+}
+
+void liberarLista(No* head) {
+    No* atual = head;
+    while (atual != NULL) {
+        No* temp = atual;
+        atual = atual->proximo;
+        free(temp);
     }
 }
 
